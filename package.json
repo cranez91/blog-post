@@ -20,6 +20,7 @@
         "vue-loader": "^17.0.1"
     },
     "dependencies": {
+        "sweetalert2": "^11.7.20",
         "vue": "^3.2.36"
     }
 }

@@ -19,8 +19,7 @@ class CommentController extends Controller
      */
     public function index()
     {
-        $comments = Comment::whereNull('parent_id')->latest('created_at')->get();
-        $comments->load('replies.replies.replies'); // Load nested replies recursively
+        $comments = $this->getComments();
         return CommentResource::collection($comments);
     }
 
@@ -35,11 +34,20 @@ class CommentController extends Controller
         if ($request->has('parent_id')) {
             $parentComment = Comment::findOrFail($request->parent_id);
             if ($parentComment->parent_id !== null && $parentComment->parent->parent_id !== null) {
-                return response()->json('Nested comments are up to 3 layers only', 404);
+                return response()->json(['message' => 'Nested comments are up to 3 layers only'], 404);
             }
         }
 
         $comment = Comment::create($request->all());
-        return response()->json($comment, 201);
+        //return response()->json($comment, 201);
+        $comments = $this->getComments();
+        return CommentResource::collection($comments);
+    }
+
+    private function getComments()
+    {
+        $comments = Comment::whereNull('parent_id')->latest('created_at')->get();
+        $comments->load('replies.replies.replies'); // Load nested replies recursively
+        return $comments;
     }
 }
