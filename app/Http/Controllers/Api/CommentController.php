@@ -7,12 +7,13 @@ use Illuminate\Http\Request;
 use App\Http\Requests\CommentRequest;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\CommentResource;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 
 class CommentController extends Controller
 {
     /**
-     * Get the list of comments.
+     * Retrieves the list of comments.
      *
      * @param  
      * @return \App\Http\Resources\CommentResource
@@ -27,7 +28,7 @@ class CommentController extends Controller
      * Stores the comment.
      *
      * @param  \App\Http\Requests\CommentRequest  $request  The request object containing the comment data.
-     * @return \Illuminate\Http\Response
+     * @return \App\Http\Resources\CommentResource
      */
     public function store(CommentRequest $request)
     {
@@ -39,15 +40,39 @@ class CommentController extends Controller
         }
 
         $comment = Comment::create($request->all());
-        //return response()->json($comment, 201);
         $comments = $this->getComments();
         return CommentResource::collection($comments);
     }
 
+    /**
+     * Gets the list of comments with nested replies.
+     *
+     * @param  
+     * @return \Illuminate\Database\Eloquent\Collection  A collection of comments.
+     */
     private function getComments()
     {
-        $comments = Comment::whereNull('parent_id')->latest('created_at')->get();
-        $comments->load('replies.replies.replies'); // Load nested replies recursively
+        $context = &$this;
+        $comments = Comment::whereNull('parent_id')->orderBy('created_at', 'desc')
+        ->with(['replies' => function (HasMany $query) use ($context) {
+            $context->loadNestedReplies($query); // Call to the recursive function to load nested relationships
+        }])
+        ->get();
         return $comments;
+    }
+
+    /**
+     * Gets the nested list of comments.
+     *
+     * @param  
+     * @return 
+     */
+    private function loadNestedReplies($query)
+    {
+        $context = &$this;
+        $query->orderBy('created_at', 'desc');
+        $query->with(['replies' => function (HasMany $query) use ($context) {
+            $context->loadNestedReplies($query); // Call to the recursive function to load nested relationships
+        }]);
     }
 }
